@@ -489,6 +489,7 @@ private:
 	void dispatch_cache_read_only_depth(Vulkan::CommandBuffer &cmd, const RenderPass &rp, uint32_t depth_psm, uint32_t instance);
 
 	void flush_rendering(const RenderPass &rp, uint32_t instance, uint32_t base_primitive, uint32_t num_primitives);
+	void flush_rendering_unaliased(const RenderPass &rp, uint32_t instance, uint32_t base_primitive, uint32_t num_primitives);
 
 	struct SamplingRect
 	{

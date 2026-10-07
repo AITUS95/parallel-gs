@@ -3015,6 +3015,46 @@ static inline void sanitize_state_indices(const PrimitiveAttribute *prims, const
 void GSRenderer::flush_rendering(const RenderPass &rp, uint32_t instance,
                                  uint32_t base_primitive, uint32_t num_primitives)
 {
+	const auto &inst = rp.instances[instance];
+	uint32_t page_height_log2 = get_data_structure(inst.fb.frame.desc.PSM).page_height_log2;
+	if (inst.z_write)
+		page_height_log2 = std::min(page_height_log2,
+			get_data_structure(inst.fb.z.desc.PSM | ZBUFBits::PSM_MSB).page_height_log2);
+	const uint32_t end_y = inst.base_y + (inst.coarse_tiles_height << rp.coarse_tile_size_log2);
+	if (inst.fb.frame.desc.FBW != 0 ||
+	    (inst.base_y >> page_height_log2) == ((end_y - 1) >> page_height_log2))
+	{
+		flush_rendering_unaliased(rp, instance, base_primitive, num_primitives);
+		return;
+	}
+
+	// Zero page stride aliases successive logical page rows. Preserve primitive
+	// order, then raster order within each primitive, instead of racing GPU tiles.
+	RenderPass strip = rp;
+	strip.coarse_tile_size_log2 = std::min(rp.coarse_tile_size_log2, page_height_log2);
+	strip.instances[instance].coarse_tiles_width <<= rp.coarse_tile_size_log2 - strip.coarse_tile_size_log2;
+	const uint32_t page_height = 1u << page_height_log2;
+	for (uint32_t prim = base_primitive; prim < base_primitive + num_primitives; prim++)
+	{
+		uint32_t prim_instance = (buffers.prim[prim].state >> STATE_VERTEX_RENDER_PASS_INSTANCE_OFFSET) &
+			((1u << STATE_VERTEX_RENDER_PASS_INSTANCE_COUNT) - 1u);
+		if (prim_instance != instance)
+			continue;
+		for (uint32_t y = inst.base_y & ~(page_height - 1); y < end_y; y += page_height)
+		{
+			strip.instances[instance].base_y = y;
+			strip.instances[instance].coarse_tiles_height = page_height >> strip.coarse_tile_size_log2;
+			flush_rendering_unaliased(strip, instance, prim, 1);
+			direct_cmd->barrier(VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+				VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
+		}
+	}
+}
+
+void GSRenderer::flush_rendering_unaliased(const RenderPass &rp, uint32_t instance,
+                                          uint32_t base_primitive, uint32_t num_primitives)
+{
 	Vulkan::QueryPoolHandle start_ts, end_ts;
 
 	if (enable_timestamps)
