@@ -1,3 +1,4 @@
 [submodule "Granite"]
 	path = Granite
 	url = https://github.com/DiscoStarslayer/Granite
+	branch = fix/pcsx2-platform-builds
