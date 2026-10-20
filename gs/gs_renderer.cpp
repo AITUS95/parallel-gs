@@ -3021,7 +3021,7 @@ void GSRenderer::flush_rendering(const RenderPass &rp, uint32_t instance,
 		page_height_log2 = std::min(page_height_log2,
 			get_data_structure(inst.fb.z.desc.PSM | ZBUFBits::PSM_MSB).page_height_log2);
 	const uint32_t end_y = inst.base_y + (inst.coarse_tiles_height << rp.coarse_tile_size_log2);
-	if (inst.fb.frame.desc.FBW != 0 ||
+	if (!serialize_zero_stride || inst.fb.frame.desc.FBW != 0 ||
 	    (inst.base_y >> page_height_log2) == ((end_y - 1) >> page_height_log2))
 	{
 		flush_rendering_unaliased(rp, instance, base_primitive, num_primitives);

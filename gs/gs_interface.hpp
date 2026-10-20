@@ -234,6 +234,9 @@ struct Hacks
 	// Can squeeze out more performance on lower powered devices in some cases
 	// where games abuse the GS's fill rate for e.g. ridiculously expensive fogging effects.
 	bool allow_blend_demote = false;
+
+	// Preserve primitive/raster order when zero framebuffer stride aliases page rows.
+	bool serialize_zero_stride = false;
 };
 
 class SignalInterface

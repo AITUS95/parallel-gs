@@ -4444,6 +4444,12 @@ void GSInterface::set_debug_mode(const DebugMode &mode)
 
 void GSInterface::set_hacks(const Hacks &hacks_)
 {
+	if (hacks.serialize_zero_stride != hacks_.serialize_zero_stride)
+	{
+		// Submit queued work with the policy under which it was accumulated.
+		flush();
+		renderer.set_zero_stride_serialization(hacks_.serialize_zero_stride);
+	}
 	hacks = hacks_;
 
 	if (!hacks.backbuffer_promotion)

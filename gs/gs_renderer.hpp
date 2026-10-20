@@ -321,8 +321,10 @@ public:
 	SuperSampling get_max_supported_super_sampling() const;
 
 	void set_field_aware_super_sampling(bool enable);
+	void set_zero_stride_serialization(bool enable) { serialize_zero_stride = enable; }
 
 private:
+	bool serialize_zero_stride = false;
 	PageTracker &tracker;
 	Vulkan::Device *device = nullptr;
 	Vulkan::CommandBufferHandle direct_cmd;
