@@ -1894,10 +1894,21 @@ void GSInterface::drawing_kick_update_state(FBFeedbackMode feedback_mode, const 
 
 		// It's possible to use alpha test as a quirky way to disable Z writes.
 		bool implied_z_mask = ctx.test.desc.ATE != 0 &&
-		                      ctx.test.desc.ATST == ATST_NEVER &&
-		                      ctx.test.desc.AFAIL != AFAIL_ZB_ONLY;
+			                  ctx.test.desc.ATST == ATST_NEVER &&
+			                  ctx.test.desc.AFAIL != AFAIL_ZB_ONLY;
 
-		if (!implied_z_mask && ctx.zbuf.desc.ZMSK == 0)
+		// Change only the emitted primitive, not the guest ZBUF register.
+		const bool effect_z_mask = hacks.mask_corona_depth &&
+			                       prim.desc.PRIM == 4 && prim.desc.TME && prim.desc.ABE &&
+			                       !prim.desc.FGE && !prim.desc.AA1 && !prim.desc.FST &&
+			                       ctx.tex0.desc.TCC && ctx.tex0.desc.TFX == 0 && ctx.tex1.desc.MXL == 0 &&
+			                       ctx.alpha.desc.A == 0 &&
+			                       ctx.alpha.desc.C == 0 && ctx.alpha.desc.D == 1 &&
+			                       !ctx.test.desc.ATE && !ctx.test.desc.DATE && ctx.test.desc.ZTST == TESTBits::ZTST_GEQUAL &&
+			                       ctx.frame.desc.PSM == PSMCT32 && ctx.zbuf.desc.PSM == 1 &&
+			                       ((ctx.tex0.desc.PSM == PSMT8 && ctx.tex0.desc.TW == 7 && ctx.tex0.desc.TH == 7 && ctx.alpha.desc.B == 2) ||
+									   (ctx.tex0.desc.PSM == PSMCT32 && ctx.tex0.desc.TW == 6 && ctx.tex0.desc.TH == 6 && ctx.alpha.desc.B == 1));
+		if (!implied_z_mask && !effect_z_mask && ctx.zbuf.desc.ZMSK == 0)
 			p.state |= 1u << STATE_BIT_Z_WRITE;
 	}
 
@@ -4444,6 +4455,12 @@ void GSInterface::set_debug_mode(const DebugMode &mode)
 
 void GSInterface::set_hacks(const Hacks &hacks_)
 {
+	if (hacks.mask_corona_depth != hacks_.mask_corona_depth)
+	{
+		flush();
+		state_tracker.dirty_flags |= STATE_DIRTY_PRIM_TEMPLATE_BIT;
+	}
+
 	if (hacks.serialize_zero_stride != hacks_.serialize_zero_stride)
 	{
 		// Submit queued work with the policy under which it was accumulated.

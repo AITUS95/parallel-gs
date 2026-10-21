@@ -237,6 +237,9 @@ struct Hacks
 
 	// Preserve primitive/raster order when zero framebuffer stride aliases page rows.
 	bool serialize_zero_stride = false;
+
+	// Compatibility workaround for transparent light and fog quads writing depth.
+	bool mask_corona_depth = false;
 };
 
 class SignalInterface
